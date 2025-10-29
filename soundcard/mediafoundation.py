@@ -16,8 +16,12 @@ _package_dir, _ = os.path.split(__file__)
 with open(os.path.join(_package_dir, 'mediafoundation.py.h'), 'rt') as f:
     _ffi.cdef(f.read())
 
-_ole32 = _ffi.dlopen('ole32')
-
+try:
+    # Attempt to load by generic name first; fall back to the explicit DLL name if that fails.
+    _ole32 = _ffi.dlopen('ole32')
+except OSError:
+    # On some Windows 11 systems with Python 3.11.x, omitting the ".dll" extension may not work.
+    _ole32 = _ffi.dlopen('ole32.dll')
 
 # use a custom warning subclass that is always shown, instead of once:
 class SoundcardRuntimeWarning(RuntimeWarning):
@@ -758,7 +762,11 @@ class _Recorder(_AudioClient):
         self._idle_start_time = None
         data_ptr, nframes, flags = self._capture_buffer()
         if data_ptr != _ffi.NULL:
-            chunk = numpy.fromstring(_ffi.buffer(data_ptr, nframes*4*len(set(self.channelmap))), dtype='float32')
+            # Convert the raw CFFI buffer into a standard bytes object to ensure compatibility
+            # with modern NumPy versions (fromstring binary mode was removed). Using frombuffer
+            # on bytes plus .copy() guarantees a writable float32 array for downstream processing.
+            buf = bytes(_ffi.buffer(data_ptr, nframes * 4 * len(set(self.channelmap))))
+            chunk = numpy.frombuffer(buf, dtype=numpy.float32).copy()
         else:
             raise RuntimeError('Could not create capture buffer')
         if flags & _ole32.AUDCLNT_BUFFERFLAGS_SILENT:
