@@ -782,7 +782,9 @@ class _Recorder(_AudioClient):
             flags &= ~_ole32.AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY
             self._is_first_frame = False
         if flags & _ole32.AUDCLNT_BUFFERFLAGS_DATA_DISCONTINUITY:
-            warnings.warn("data discontinuity in recording", SoundcardRuntimeWarning)
+            # Suppressed: data discontinuity warnings are noisy for some devices
+            # warnings.warn("data discontinuity in recording", SoundcardRuntimeWarning)
+            pass
         # ignore _ole32.AUDCLNT_BUFFERFLAGS_TIMESTAMP_ERROR, since we don't use
         # time stamps.
         if nframes > 0:
